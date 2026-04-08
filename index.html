@@ -98,7 +98,7 @@
             align-items: center;
             margin-bottom: 60px;
             width: 100%;
-            max-width: 420px;
+            max-width: 520px;
         }
 
         .step-number {
@@ -354,7 +354,7 @@
                 padding: 18px 20px;
             }
             .progress-bar {
-                max-width: 300px;
+                max-width: 360px;
             }
         }
     </style>
@@ -378,6 +378,10 @@
                 <div class="step-number" id="step2">2</div>
                 <div class="step-line" id="line2"></div>
                 <div class="step-number" id="step3">3</div>
+                <div class="step-line" id="line3"></div>
+                <div class="step-number" id="step4">4</div>
+                <div class="step-line" id="line4"></div>
+                <div class="step-number" id="step5">5</div>
             </div>
 
             <!-- Questions -->
@@ -409,7 +413,7 @@
                 <div id="q3" class="question-slide" style="display:none">
                     <p class="question-text">Qual o seu número de WhatsApp?</p>
                     <div class="input-wrap">
-                        <input type="tel" class="input-field" id="whatsapp" placeholder="DDD + número (ex: 11 99999-9999)" maxlength="12" autocomplete="off" />
+                        <input type="tel" class="input-field" id="whatsapp" placeholder="(11) 99999-9999" maxlength="15" autocomplete="off" />
                     </div>
                     <p class="error-msg" id="err3">Insira um número válido com DDD (10 a 12 dígitos).</p>
                     <br>
@@ -462,7 +466,11 @@
 
         <!-- ── Tela de Obrigado ── -->
         <div id="thankYou">
-            <div class="checkmark">✓</div>
+            <div class="checkmark">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
             <h1>Obrigado!</h1>
             <p>Recebemos suas informações.<br>Nossa equipe entrará em contato em breve.</p>
         </div>
@@ -472,14 +480,8 @@
     <footer></footer>
 
     <script>
-        // =============================================
-        //  CONFIGURAÇÃO DO TELEGRAM
-        // =============================================
-        const TELEGRAM_BOT_TOKEN = '8683858973:AAFyZKmApTh9siehC1CKISTOXhQcZj-lZQM';
-        const TELEGRAM_CHAT_ID   = '-5298441101';
-        // =============================================
 
-        const stepMap = { 1: 1, 2: 1, 3: 2, 4: 2, 5: 3 };
+        const stepMap = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
 
         // Após o intro (2.2s), remove a tela e mostra o formulário
         setTimeout(() => {
@@ -492,7 +494,7 @@
         }, 2200);
 
         function updateProgress(progressStep) {
-            for (let i = 1; i <= 3; i++) {
+            for (let i = 1; i <= 5; i++) {
                 const el = document.getElementById('step' + i);
                 if (i < progressStep) {
                     el.className = 'step-number done';
@@ -501,7 +503,7 @@
                 } else {
                     el.className = 'step-number';
                 }
-                if (i < 3) {
+                if (i < 5) {
                     const line = document.getElementById('line' + i);
                     line.className = i < progressStep ? 'step-line active' : 'step-line';
                 }
@@ -538,8 +540,9 @@
                 err.style.display = 'none';
             } else if (q === 3) {
                 const val = document.getElementById('whatsapp').value.trim();
+                const digits = val.replace(/\D/g, '');
                 const err = document.getElementById('err3');
-                if (!/^\d{10,12}$/.test(val)) { err.style.display = 'block'; return; }
+                if (digits.length < 10 || digits.length > 11) { err.style.display = 'block'; return; }
                 err.style.display = 'none';
             } else if (q === 4) {
                 const val = document.getElementById('especialidade').value;
@@ -572,14 +575,10 @@
                 `💰 *Receita mensal:* ${receita}`;
 
             try {
-                await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                await fetch('/api/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: TELEGRAM_CHAT_ID,
-                        text: mensagem,
-                        parse_mode: 'Markdown'
-                    })
+                    body: JSON.stringify({ mensagem })
                 });
             } catch (e) {
                 console.error('Erro ao enviar para Telegram:', e);
@@ -589,6 +588,16 @@
             const ty = document.getElementById('thankYou');
             ty.style.display = 'block';
         }
+
+        // Máscara do telefone
+        document.getElementById('whatsapp').addEventListener('input', function (e) {
+            let digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+            let formatted = '';
+            if (digits.length > 0) formatted = '(' + digits.slice(0, 2);
+            if (digits.length >= 2) formatted += ') ' + digits.slice(2, 7);
+            if (digits.length >= 7) formatted += '-' + digits.slice(7, 11);
+            e.target.value = formatted;
+        });
 
         // Avançar com Enter
         document.addEventListener('keydown', function (e) {
