@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
     try {
         // Envia dados do lead para o grupo (comportamento existente)
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        const tgResponse = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -25,10 +25,15 @@ export default async function handler(req, res) {
                 parse_mode: 'Markdown'
             })
         });
+        if (!tgResponse.ok) {
+            const err = await tgResponse.text();
+            console.error('Telegram group send error:', err);
+        }
 
         // Inicia triagem automática se lead e chat de destino estiverem configurados
         const leadChatId = process.env.TELEGRAM_LEAD_CHAT_ID;
-        if (lead && leadChatId) {
+        const requiredFields = ['nome', 'escritorio', 'especialidade', 'receita'];
+        if (lead && leadChatId && requiredFields.every(f => lead[f])) {
             const firstMessage = await callClaude(lead, [
                 { role: 'user', content: 'Inicie a conversa de qualificação.' }
             ]);
