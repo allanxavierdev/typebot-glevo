@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
     if (isEnd) {
         const tipo = aiText.includes('[FIM:REUNIAO]') ? '✅ Reunião Marcada' : '📋 Lead Qualificado';
-        const resumoMatch = aiText.match(/RESUMO:(.*)/);
+        const resumoMatch = aiText.match(/RESUMO:([\s\S]*)/);
         const resumo = resumoMatch ? resumoMatch[1].trim() : '';
 
         const groupMsg =
