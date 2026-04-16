@@ -14,11 +14,10 @@ export default async function handler(req, res) {
         if (!conv) return res.status(200).end();
 
         conv.messages.push({ role: 'user', content: userText });
+        if (conv.messages.length > 20) conv.messages = conv.messages.slice(-20);
 
         const aiText = await callClaude(conv.lead, conv.messages);
         conv.messages.push({ role: 'assistant', content: aiText });
-
-        if (conv.messages.length > 20) conv.messages = conv.messages.slice(-20);
 
         const isEnd = aiText.includes('[FIM:REUNIAO]') || aiText.includes('[FIM:QUALIFICADO]');
 
