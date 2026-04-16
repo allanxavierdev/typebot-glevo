@@ -588,7 +588,10 @@
                 await fetch('/api/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mensagem })
+                    body: JSON.stringify({
+                        mensagem,
+                        lead: { nome, escritorio, whatsapp, especialidade, receita }
+                    })
                 });
             } catch (e) {
                 console.error('Erro ao enviar para Telegram:', e);
