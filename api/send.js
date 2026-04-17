@@ -33,24 +33,32 @@ export default async function handler(req, res) {
         // Envia lead ao CRM
         const crmUrl   = process.env.CRM_WEBHOOK_URL;
         const crmToken = process.env.CRM_WEBHOOK_TOKEN;
-        if (crmUrl && crmToken && lead?.nome && lead?.whatsapp) {
+        if (crmUrl && crmUrl.startsWith('https://') && crmToken && lead?.nome && lead?.whatsapp) {
             try {
-                const crmRes = await fetch(`${crmUrl}/api/webhook/leads`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${crmToken}`
-                    },
-                    body: JSON.stringify({
-                        nome:          lead.nome,
-                        whatsapp:      lead.whatsapp,
-                        escritorio:    lead.escritorio   || null,
-                        especialidade: lead.especialidade || null,
-                        receita:       lead.receita       || null
-                    })
-                });
+                const ac = new AbortController();
+                const timer = setTimeout(() => ac.abort(), 5000);
+                let crmRes;
+                try {
+                    crmRes = await fetch(`${crmUrl}/api/webhook/leads`, {
+                        method: 'POST',
+                        signal: ac.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${crmToken}`
+                        },
+                        body: JSON.stringify({
+                            nome:          lead.nome,
+                            whatsapp:      lead.whatsapp,
+                            escritorio:    lead.escritorio   || null,
+                            especialidade: lead.especialidade || null,
+                            receita:       lead.receita       || null
+                        })
+                    });
+                } finally {
+                    clearTimeout(timer);
+                }
                 if (!crmRes.ok) {
-                    const err = await crmRes.text();
+                    const err = (await crmRes.text()).slice(0, 500);
                     console.error('CRM webhook error:', crmRes.status, err);
                 }
             } catch (crmErr) {
