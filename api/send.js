@@ -30,6 +30,34 @@ export default async function handler(req, res) {
             console.error('Telegram group send error:', err);
         }
 
+        // Envia lead ao CRM
+        const crmUrl   = process.env.CRM_WEBHOOK_URL;
+        const crmToken = process.env.CRM_WEBHOOK_TOKEN;
+        if (crmUrl && crmToken && lead?.nome && lead?.whatsapp) {
+            try {
+                const crmRes = await fetch(`${crmUrl}/api/webhook/leads`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${crmToken}`
+                    },
+                    body: JSON.stringify({
+                        nome:          lead.nome,
+                        whatsapp:      lead.whatsapp,
+                        escritorio:    lead.escritorio   || null,
+                        especialidade: lead.especialidade || null,
+                        receita:       lead.receita       || null
+                    })
+                });
+                if (!crmRes.ok) {
+                    const err = await crmRes.text();
+                    console.error('CRM webhook error:', crmRes.status, err);
+                }
+            } catch (crmErr) {
+                console.error('CRM webhook fetch error:', crmErr);
+            }
+        }
+
         // Inicia triagem automática se lead e chat de destino estiverem configurados
         const leadChatId = process.env.TELEGRAM_LEAD_CHAT_ID;
         const requiredFields = ['nome', 'escritorio', 'especialidade', 'receita'];
