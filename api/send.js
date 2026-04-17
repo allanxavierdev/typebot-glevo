@@ -33,6 +33,7 @@ export default async function handler(req, res) {
         // Envia lead ao CRM
         const crmUrl   = process.env.CRM_WEBHOOK_URL;
         const crmToken = process.env.CRM_WEBHOOK_TOKEN;
+        // whatsapp obrigatório no CRM; triagem usa campos distintos (escritorio, especialidade, receita)
         if (crmUrl && crmUrl.startsWith('https://') && crmToken && lead?.nome && lead?.whatsapp) {
             try {
                 const ac = new AbortController();
