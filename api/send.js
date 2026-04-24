@@ -6,6 +6,7 @@ export default async function handler(req, res) {
     }
 
     const { mensagem, lead } = req.body;
+    console.log('[send] body recebido:', JSON.stringify({ mensagem: !!mensagem, lead }));
 
     if (!mensagem) {
         return res.status(400).json({ error: 'Mensagem ausente' });
@@ -33,7 +34,9 @@ export default async function handler(req, res) {
         // Envia lead ao CRM
         const crmUrl   = process.env.CRM_WEBHOOK_URL;
         const crmToken = process.env.CRM_WEBHOOK_TOKEN;
+        let crmLeadId = null;
         // whatsapp obrigatório no CRM; triagem usa campos distintos (escritorio, especialidade, receita)
+        console.log('[send] CRM check:', { crmUrl: !!crmUrl, crmToken: !!crmToken, nome: lead?.nome, whatsapp: lead?.whatsapp });
         if (crmUrl && crmUrl.startsWith('https://') && crmToken && lead?.nome && lead?.whatsapp) {
             try {
                 const ac = new AbortController();
@@ -58,7 +61,10 @@ export default async function handler(req, res) {
                 } finally {
                     clearTimeout(timer);
                 }
-                if (!crmRes.ok) {
+                if (crmRes.ok) {
+                    const crmData = await crmRes.json();
+                    crmLeadId = crmData.id || null;
+                } else {
                     const err = (await crmRes.text()).slice(0, 500);
                     console.error('CRM webhook error:', crmRes.status, err);
                 }
@@ -77,6 +83,7 @@ export default async function handler(req, res) {
 
             await kvSet(`conv:${leadChatId}`, {
                 lead,
+                lead_id: crmLeadId,
                 messages: [
                     { role: 'user', content: 'Inicie a conversa de qualificação.' },
                     { role: 'assistant', content: firstMessage }

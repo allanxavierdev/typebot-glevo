@@ -31,7 +31,8 @@ export default async function handler(req, res) {
         await sendTelegram(chatId, cleanText);
 
         if (isEnd) {
-            const tipo = aiText.includes('[FIM:REUNIAO]') ? '✅ Reunião Marcada' : '📋 Lead Qualificado';
+            const resultado = aiText.includes('[FIM:REUNIAO]') ? 'reuniao' : 'qualificado';
+            const tipo = resultado === 'reuniao' ? '✅ Reunião Marcada' : '📋 Lead Qualificado';
             const resumoMatch = aiText.match(/RESUMO:([\s\S]*)/);
             const resumo = resumoMatch ? resumoMatch[1].trim() : '';
 
@@ -44,6 +45,71 @@ export default async function handler(req, res) {
                 `📊 ${resumo}`;
 
             await sendTelegram(process.env.TELEGRAM_CHAT_ID, groupMsg);
+
+            // Sincroniza triagem com o CRM
+            const crmUrl   = process.env.CRM_WEBHOOK_URL;
+            const crmToken = process.env.CRM_WEBHOOK_TOKEN;
+            if (crmUrl && crmToken) {
+                const mensagens = conv.messages.map(m => ({
+                    de:    m.role === 'assistant' ? 'donna' : 'lead',
+                    texto: m.content
+                }));
+
+                let leadId = conv.lead_id;
+
+                // Se não temos lead_id, tenta criar o lead agora (fallback caso send.js tenha falhado)
+                if (!leadId && conv.lead?.nome && conv.lead?.whatsapp) {
+                    try {
+                        const createRes = await fetch(`${crmUrl}/api/webhook/leads`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${crmToken}`
+                            },
+                            body: JSON.stringify({
+                                nome:          conv.lead.nome,
+                                whatsapp:      conv.lead.whatsapp,
+                                escritorio:    conv.lead.escritorio    || null,
+                                especialidade: conv.lead.especialidade || null,
+                                receita:       conv.lead.receita       || null
+                            })
+                        });
+                        if (createRes.ok) {
+                            const createData = await createRes.json();
+                            leadId = createData.id || null;
+                            console.log('[triage] lead criado no CRM via fallback:', leadId);
+                        } else {
+                            console.error('[triage] falha ao criar lead no CRM:', createRes.status, await createRes.text());
+                        }
+                    } catch (err) {
+                        console.error('[triage] erro ao criar lead no CRM:', err);
+                    }
+                }
+
+                // Envia triagem: prefere lead_id, cai para phone se ainda não resolveu
+                const triagemPayload = { resultado, resumo, mensagens };
+                if (leadId) {
+                    triagemPayload.lead_id = leadId;
+                } else if (conv.lead?.whatsapp) {
+                    triagemPayload.phone = conv.lead.whatsapp;
+                }
+
+                if (triagemPayload.lead_id || triagemPayload.phone) {
+                    try {
+                        await fetch(`${crmUrl}/api/webhook/triagem`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${crmToken}`
+                            },
+                            body: JSON.stringify(triagemPayload)
+                        });
+                    } catch (crmErr) {
+                        console.error('[triage] CRM triagem webhook error:', crmErr);
+                    }
+                }
+            }
+
             await kvDel(`conv:${chatId}`);
         } else {
             await kvSet(`conv:${chatId}`, conv);
