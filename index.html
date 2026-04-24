@@ -565,10 +565,14 @@
             animateQuestion('q' + q, 'q' + (q + 1), nextProgressStep);
         }
 
+        let _submitted = false;
+
         async function submitForm() {
+            if (_submitted) return;
+            _submitted = true;
             const receita = document.getElementById('receita').value;
             const err = document.getElementById('err5');
-            if (!receita) { err.style.display = 'block'; return; }
+            if (!receita) { _submitted = false; err.style.display = 'block'; return; }
             err.style.display = 'none';
 
             const nome          = document.getElementById('nome').value.trim();
